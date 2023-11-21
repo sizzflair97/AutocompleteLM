@@ -1,0 +1,2 @@
+jamo
+git+https://git@github.com/SKTBrain/KoBERT.git@master
