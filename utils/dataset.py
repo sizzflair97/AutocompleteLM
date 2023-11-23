@@ -1,12 +1,13 @@
-import datasets, random
+import datasets, random, re
 import os.path as osp
 
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 from transformers import BertTokenizerFast
-from typing import List
+from typing import List, Tuple
 from functools import partial
 from zipfile import ZipFile
 from multiprocessing import cpu_count
+from collections import defaultdict
 
 from .korean_english_multitarget_ted_talks_task.main_func import make_error
 from .korean_english_multitarget_ted_talks_task.exclude_special import exclude_special_characters
@@ -57,9 +58,7 @@ def make_error_batch_text(batch_text):
 
     return batch_text
 
-def preprocess_text(batch:datasets.arrow_dataset.Batch, tokenizer:BertTokenizerFast):
-    import re
-    
+def preprocess_text(batch:dict, tokenizer:BertTokenizerFast):
     for i, s in enumerate(batch['text']):
         for match in reversed([*re.finditer("^[0-9]* : ", s)]):
             s = s[:match.start()] + s[match.end():]
@@ -67,9 +66,8 @@ def preprocess_text(batch:datasets.arrow_dataset.Batch, tokenizer:BertTokenizerF
     batch['text'] = [batch_text for batch_text in batch['text'] if batch_text is not False]
     
     label:List[str] = [x[-1] for x in batch["text"]]
-    print("label: ", label[0])
     batch["text"] = make_error_batch_text(batch["text"])
-    print('batch["text"] : ', batch["text"][0])
+    print(f"text: {batch['text'][0]}, label: {label[0]}")
 
     label:List[str] = batch['text']
     assert type(label) == list
@@ -107,3 +105,19 @@ def load_dataset(tokenizer:BertTokenizerFast):
         mapped.set_format("torch")
         mapped.save_to_disk("cache")
     return mapped
+
+def text_loader():
+    with ZipFile("data.zip", mode='r') as zf:
+        while True:
+            for fname in zf.filelist:
+                yield {"text":zf.read(fname).decode('UTF-8')}
+    
+
+def load_iter_train_test(tokenizer:BertTokenizerFast) -> Tuple[IterableDataset, IterableDataset]:
+    train = IterableDataset.from_generator(text_loader)
+    test = IterableDataset.from_generator(text_loader)
+    train_mapped = train.map(partial(preprocess_text, tokenizer=tokenizer), batched=True, remove_columns=['text'])
+    test_mapped = test.map(partial(preprocess_text, tokenizer=tokenizer), batched=True, remove_columns=['text'])
+    # mapped.set_format("torch")
+    # mapped.save_to_disk("cache")
+    return train_mapped, test_mapped
