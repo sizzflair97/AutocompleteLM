@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cu113
 jamo
 absl-py
 nltk
@@ -8,3 +9,6 @@ transformers
 datasets==2.15.0
 accelerate
 tensorboard
+torch==1.12.1+cu113
+torchvision==0.13.1+cu113
+torchaudio==0.12.1

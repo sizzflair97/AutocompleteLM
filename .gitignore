@@ -3,4 +3,9 @@
 /cache
 data.zip
 *.pdf
-/output
+/output*
+*.log
+*.out
+*.err
+*.gpu
+/__pycache_
