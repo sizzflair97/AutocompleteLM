@@ -122,8 +122,8 @@ model.config.vocab_size = model.config.encoder.vocab_size
 # %%
 args = Seq2SeqTrainingArguments(
     output_dir=f"output-{get_time_dir()}",
-    per_device_train_batch_size=64,
-    per_device_eval_batch_size=64,
+    per_device_train_batch_size=8,
+    per_device_eval_batch_size=8,
     predict_with_generate=True,
     evaluation_strategy="steps",
     do_train=True,
