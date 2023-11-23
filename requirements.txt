@@ -4,3 +4,7 @@ nltk
 rouge_score
 evaluate
 numpy==1.24.1
+transformers
+datasets
+accelerate
+tensorboard
