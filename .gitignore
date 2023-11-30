@@ -8,4 +8,4 @@ data.zip
 *.out
 *.err
 *.gpu
-/__pycache_
+*__pycache_
