@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --job-name=
-#SBATCH --nodes=
+#SBATCH --job-name=T5
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=1
 #SBATCH --partition=gpu2
 #SBATCH --gres=gpu:a10:4
@@ -17,7 +17,7 @@ echo "start at: $(date)"
 echo "node: $(hostname)"
 echo "jobid: $(SLURM_JOB_ID)"
 
-source ~/miniconda3/bin/activate ~/miniconda3/envs/torch //Conda 위치
+source ~/miniconda3/bin/activate ~/miniconda3/envs/torch
 
 export GPUS_PER_NODE=4
 export MASTER_ADDR=$(scontrol show hostnames $SLURM_JOB_NODELIST | head -n 1)
@@ -25,7 +25,7 @@ export MASTER_PORT=1479
 
 MONITOR_GPU_SCRIPT=$(cat <<EOF
     hostnode=\`hostname -s\`
-    /usr/local/bin/gpustat -i > $..._log/\$hostnode.gpu &
+    /usr/local/bin/gpustat -i > $HOME/myubai/AutocompleteLM/_log/\$hostnode.gpu &
 EOF
 )
 SRUN_SCRIPT='python -m torch.distributed.run \

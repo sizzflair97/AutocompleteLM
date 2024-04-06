@@ -4,7 +4,7 @@ import os.path as osp
 import datasets
 
 from transformers import EncoderDecoderModel, BertTokenizerFast,\
-    Seq2SeqTrainer, Seq2SeqTrainingArguments
+    Seq2SeqTrainer, Seq2SeqTrainingArguments, AutoTokenizer, BertModel, T5ForConditionalGeneration, T5TokenizerFast, AutoModel, AutoConfig
 from tokenization_kobert import KoBertTokenizer
 from datasets import load_dataset, Dataset
 from evaluate import load as load_metric
@@ -15,11 +15,10 @@ from functools import partial
 from typing import List
 from zipfile import ZipFile
 
-import tensorboard
-
-from utils import rouge, load_dataset, load_iter_train_test, load_iter_augmented_train
+from utils import rouge, bleu, exact_match, load_dataset, load_iter_augmented_train, load_iter_train_test
 
 print(torch.__version__)
+torch.cuda.is_available()
 
 # %%
 # model_path = "skt/kogpt2-base-v2"
@@ -31,9 +30,23 @@ print(torch.__version__)
 # model = AutoModel.from_pretrained('monologg/distilkobert')
 # model = BertForMaskedLM.from_pretrained("monologg/kobert-lm")
 # tokenizer = KoBertTokenizer.from_pretrained('monologg/distilkobert')
-model = EncoderDecoderModel.from_pretrained("kykim/bertshared-kor-base")
-tokenizer = BertTokenizerFast.from_pretrained("kykim/bertshared-kor-base")
-model
+# model = EncoderDecoderModel.from_pretrained("kykim/bertshared-kor-base")
+config = AutoConfig.from_pretrained("psyche/KoT5-summarization")
+model = T5ForConditionalGeneration(config)
+# model = T5ForConditionalGeneration.from_pretrained("psyche/KoT5-summarization")
+tokenizer = AutoTokenizer.from_pretrained("psyche/KoT5-summarization")
+# model = EncoderDecoderModel.from_encoder_decoder_pretrained("kykim/bert-kor-base", "kykim/bert-kor-base")
+# tokenizer = BertTokenizerFast.from_pretrained("kykim/bertshared-kor-base")
+# model
+
+# %%
+tokenizer.eos_token
+
+# %%
+tokenizer.bos_token_id
+
+# %%
+model.config.decoder_start_token_id
 
 # %%
 # sent = "안녕하세요.[MASK][MASK][MASK][MASK][MASK][MASK]"
@@ -74,23 +87,7 @@ model
 # dataset
 
 # %%
-# def batch_iterator(batch_size=10000):
-#     for i in tqdm(range(0, len(dataset['train']), batch_size)):
-#         yield dataset['train'][i:i+batch_size]['text']
-# if [_dir for _dir in listdir() if "tokenizer" in _dir] != []:
-#     latest_tokenizer_path = sorted([_dir for _dir in listdir() if "tokenizer" in _dir])[-1]
-#     tokenizer = AutoTokenizer.from_pretrained(latest_tokenizer_path)
-# else:
-#     # tokenizer = AutoTokenizer.from_pretrained("skt/kogpt2-base-v2").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32_000)
-#     tokenizer = AutoTokenizer.from_pretrained("skplanet/dialog-koelectra-small-discriminator").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32_000)
-#     tokenizer.save_pretrained(get_time_dir())
-
-# tokenizer.pad_token = '<pad>'
-# tokenizer.eos_token = '</s>'
-# tokenizer.bos_token = '</s>'
-# tokenizer.unk_token = '<unk>'
-# tokenizer.mask_token = '<mask>'
-# tokenizer.model_max_length = 32
+tokenizer.model_max_length = 32
 
 # %%
 print(f"The max length for the tokenizer is: {tokenizer.model_max_length}")
@@ -103,6 +100,42 @@ def get_time_dir(): return f"{strftime('%m-%d-%H-%M', localtime(time()))}"
 trainset, testset = load_iter_train_test(tokenizer=tokenizer)
 
 # %%
+def batch_iterator():
+    dset = iter(load_iter_augmented_train())
+    # for i in tqdm(range(0, 1000000, batch_size)):
+    for i in tqdm(range(1000000)):
+        # yield trainset[i:i+batch_size]['text']
+        _item = next(dset)
+        # print(_item)
+        yield _item['text']
+if [_dir for _dir in listdir() if "tokenizer" in _dir] != []:
+    latest_tokenizer_path = sorted([_dir for _dir in listdir() if "tokenizer" in _dir])[-1]
+    tokenizer = AutoTokenizer.from_pretrained(latest_tokenizer_path)
+else:
+    # tokenizer = AutoTokenizer.from_pretrained("skt/kogpt2-base-v2").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32_000)
+    # tokenizer = AutoTokenizer.from_pretrained("skplanet/dialog-koelectra-small-discriminator").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32_000)
+    tokenizer = AutoTokenizer.from_pretrained("psyche/KoT5-summarization").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32000)
+    tokenizer.save_pretrained("tokenizer_"+get_time_dir())
+
+tokenizer.pad_token = '[PAD]'
+tokenizer.eos_token = '[SEP]'
+tokenizer.bos_token = '[SEP]'
+# tokenizer.unk_token = '[UNK]'
+tokenizer.mask_token = '[MASK]'
+
+# %%
+tokenizer.encode("안가ㅇ") 
+
+# %%
+tokenizer.decode(5206)
+
+# %%
+tokenizer.decode(tokenizer.encode("집가"))
+
+# %%
+tokenizer("안녀")
+
+# %%
 # one = dataset['train'][0]
 # one
 
@@ -110,45 +143,40 @@ trainset, testset = load_iter_train_test(tokenizer=tokenizer)
 model.config.decoder_start_token_id = tokenizer.bos_token_id
 model.config.eos_token_id = tokenizer.eos_token_id
 model.config.pad_token_id = tokenizer.pad_token_id
-
-model.config.max_length = 32
-model.config.early_stopping = True
-# model.config.no_repeat_ngram_size = 1
-model.config.length_penalty = 2.
-model.config.repetition_penalty = 3.
-model.config.num_beams = 10
-model.config.vocab_size = model.config.encoder.vocab_size
+# model.config.vocab_size = model.config.encoder.vocab_size
 
 
 # %%
 args = Seq2SeqTrainingArguments(
-    output_dir=f"output",
+    output_dir=f"output-"+get_time_dir(),
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
     predict_with_generate=True,
     evaluation_strategy="steps",
     do_train=True,
     do_eval=True,
-    logging_steps=1_000,
     eval_steps=2_000,
+    logging_steps=1,
     gradient_accumulation_steps=8,
     # num_train_epochs=1,
     weight_decay=.1,
     warmup_steps=1_000,
     lr_scheduler_type="cosine",
-    learning_rate=5e-4,
+    learning_rate=1e-5,
     save_steps=2_000,
-    fp16=True,
+    bf16=True,
     num_train_epochs=5,
     save_total_limit=1,
-    max_steps=100_000
+    max_steps=100_000,
+    gradient_checkpointing=True,
+    # metric_for_best_model='rouge1_fmeasure',
 )
 
 trainer = Seq2SeqTrainer(
     model=model,
     tokenizer=tokenizer,
     args=args,
-    compute_metrics=partial(rouge, tokenizer=tokenizer),
+    compute_metrics=partial(exact_match, tokenizer=tokenizer),
     train_dataset=trainset,
     eval_dataset=testset,
 )
@@ -168,8 +196,5 @@ trainer = Seq2SeqTrainer(
 
 # %%
 trainer.train()
-
-# %%
-
 
 

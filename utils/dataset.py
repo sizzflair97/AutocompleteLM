@@ -65,8 +65,6 @@ def augment_text(batch:dict):
             s = s[:match.start()] + s[match.end():]
         batch['text'][i] = make_four_words(s)
     batch['text'] = [batch_text for batch_text in batch['text'] if batch_text is not False]
-    
-    label:List[str] = [x[-1] for x in batch["text"]]
     batch["text"] = make_error_batch_text(batch["text"])    
     return batch
 
@@ -76,12 +74,12 @@ def preprocess_text(batch:dict, tokenizer:BertTokenizerFast):
             s = s[:match.start()] + s[match.end():]
         batch['text'][i] = make_four_words(s)
     batch['text'] = [batch_text for batch_text in batch['text'] if batch_text is not False]
-    
     label:List[str] = [x[-1] for x in batch["text"]]
+    
     batch["text"] = make_error_batch_text(batch["text"])
-    # print(f"text: {batch['text'][0]}, label: {label[0]}")
-
-    label:List[str] = batch['text']
+    batch["text"] = ["".join(batch_text) for batch_text in batch['text'] if batch_text]
+    
+    print(f"text: {batch['text'][0]}, label: {label[0]}")
     
     tokenized_inputs = tokenizer(
         batch['text'], max_length=tokenizer.model_max_length, padding="max_length", truncation=True,
@@ -92,8 +90,8 @@ def preprocess_text(batch:dict, tokenizer:BertTokenizerFast):
     
     batch['input_ids'] = tokenized_inputs.input_ids
     batch['attention_mask'] = tokenized_inputs.attention_mask
-    batch['decoder_input_ids'] = tokenized_outputs.input_ids
-    batch['decoder_attention_mask'] = tokenized_outputs.attention_mask
+    # batch['decoder_input_ids'] = tokenized_outputs.input_ids
+    # batch['decoder_attention_mask'] = tokenized_outputs.attention_mask
     batch['labels'] = tokenized_outputs.input_ids.copy()
     
     batch['labels'] = [[-100 if token == tokenizer.pad_token_id else token for token in labels] for labels in batch["labels"]]

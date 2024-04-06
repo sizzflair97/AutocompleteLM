@@ -1,14 +1,19 @@
 {
-    "bf16": {
-        "enabled": true
+    "fp16": {
+        "enabled": "auto",
+        "loss_scale": 0,
+        "loss_scale_window": 1000,
+        "initial_scale_power": 16,
+        "hysteresis": 2,
+        "min_loss_scale": 1
     },
     "optimizer": {
         "type": "AdamW",
         "params": {
-            "lr": 1e-5,
+            "lr": 1e-6,
             "betas": "auto",
             "eps": "auto",
-            "weight_decay": "auto"
+            "weight_decay": 0.1
         }
     },
     "scheduler": {
@@ -16,7 +21,7 @@
         "params": {
             "warmup_min_lr": "auto",
             "warmup_max_lr": "auto",
-            "warmup_num_steps": "auto"
+            "warmup_num_steps": 1000
         }
     },
     "zero_optimization": {
@@ -39,10 +44,10 @@
         "stage3_max_reuse_distance": 1e9,
         "stage3_gather_16bit_weights_on_model_save": true
     },
-    "gradient_accumulation_steps": "auto",
+    "gradient_accumulation_steps": 8,
     "gradient_clipping": "auto",
     "steps_per_print": 2000,
-    "train_batch_size": "auto",
+    "train_batch_size": 4,
     "train_micro_batch_size_per_gpu": "auto",
     "wall_clock_breakdown": false
 }

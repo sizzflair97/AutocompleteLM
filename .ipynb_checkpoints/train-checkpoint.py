@@ -1,5 +1,5 @@
 # %%
-import multiprocessing, torch, re
+import multiprocessing, torch, re, tensorboard
 import os.path as osp
 import datasets
 
@@ -31,7 +31,9 @@ print(torch.__version__)
 # model = AutoModel.from_pretrained('monologg/distilkobert')
 # model = BertForMaskedLM.from_pretrained("monologg/kobert-lm")
 # tokenizer = KoBertTokenizer.from_pretrained('monologg/distilkobert')
-model = EncoderDecoderModel.from_pretrained("kykim/bertshared-kor-base")
+# model = EncoderDecoderModel.from_pretrained("kykim/bertshared-kor-base")
+# tokenizer = BertTokenizerFast.from_pretrained("kykim/bertshared-kor-base")
+model = EncoderDecoderModel.from_encoder_decoder_pretrained("kykim/bert-kor-base", "kykim/bert-kor-base")
 tokenizer = BertTokenizerFast.from_pretrained("kykim/bertshared-kor-base")
 model
 
@@ -85,12 +87,11 @@ model
 #     tokenizer = AutoTokenizer.from_pretrained("skplanet/dialog-koelectra-small-discriminator").train_new_from_iterator(text_iterator=batch_iterator(), vocab_size=32_000)
 #     tokenizer.save_pretrained(get_time_dir())
 
-# tokenizer.pad_token = '<pad>'
-# tokenizer.eos_token = '</s>'
-# tokenizer.bos_token = '</s>'
-# tokenizer.unk_token = '<unk>'
-# tokenizer.mask_token = '<mask>'
-# tokenizer.model_max_length = 32
+tokenizer.pad_token = '<pad>'
+tokenizer.eos_token = '</s>'
+tokenizer.bos_token = '</s>'
+tokenizer.mask_token = '<mask>'
+tokenizer.model_max_length = 32
 
 # %%
 print(f"The max length for the tokenizer is: {tokenizer.model_max_length}")
@@ -122,7 +123,7 @@ model.config.vocab_size = model.config.encoder.vocab_size
 
 # %%
 args = Seq2SeqTrainingArguments(
-    output_dir=f"output",
+    output_dir=f"output-"+get_time_dir(),
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
     predict_with_generate=True,
@@ -136,7 +137,7 @@ args = Seq2SeqTrainingArguments(
     weight_decay=.1,
     warmup_steps=1_000,
     lr_scheduler_type="cosine",
-    learning_rate=5e-4,
+    learning_rate=3e-5,
     save_steps=2_000,
     fp16=True,
     num_train_epochs=5,
